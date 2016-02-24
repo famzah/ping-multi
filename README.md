@@ -1,5 +1,11 @@
 # ping-multi
-Interactively ping multiple hosts
+Interactively ping multiple hosts.
+
+Screenshot 1:
+![Ping-multi Screenshot 1](demo/screenshot-1.jpg?raw=true)
+
+Screenshot 2:
+![Ping-multi Screenshot 2](demo/screenshot-2.jpg?raw=true)
 
 # Motivation
 
@@ -22,14 +28,6 @@ The results are displayed in an interactive curses text console which features t
 - Ping history:
   - simple view showing received (.) and lost (X) reply packets
   - scaled view which additionally visualizes the RTT value using the numbers between 0 and 9
-
-# Screenshots
-
-Screenshot 1:
-![Ping-multi Screenshot 1](demo/screenshot-1.jpg?raw=true)
-
-Screenshot 2:
-![Ping-multi Screenshot 2](demo/screenshot-2.jpg?raw=true)
 
 # Installation
 
