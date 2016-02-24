@@ -1,0 +1,493 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use Net::Ping;
+
+use threads;
+use threads::shared;
+
+use Curses;
+use JSON;
+use Time::HiRes qw(sleep usleep);
+use POSIX;
+use Statistics::Descriptive;
+
+my $timeout = 1;
+my %ping_data : shared = ();
+my %resolved_hosts : shared = ();
+my @pressed_keys = ();
+my @thr_handles = (); # used in the SIG handlers
+my $scr_max = {
+	'x' => undef,
+	'y' => undef,
+};
+my $hdr_len = {
+	'host' => 20,
+	'sep' => 2,
+	'rtt' => '6',
+	'history' => undef,
+};
+my @stats_selector = qw/ Last Loss% Avg Min Max StDev RX_cnt TX_cnt /;
+my $host_meta = {};
+my %config : shared = (
+	'print_resolved_ip' => 0,
+	'show_scale' => 0,
+	'scale_ms' => undef,
+	'pause' => 0,
+);
+
+sub ping_host {
+	my $host = shift;
+	my $pinger = Net::Ping->new('icmp', $timeout);
+	my ($success, $rtt, $ip);
+	my $tdata;
+
+	$pinger->hires();
+
+	while (1) {
+		if (!$config{'pause'}) {
+			($success, $rtt, $ip) = $pinger->ping($host);
+
+			# discard if pause was hit, and we were in progress ping'ing
+			if (!$config{'pause'}) {
+				if (defined($rtt)) {
+					$rtt *= 1000; # convert to "ms"
+				}
+				
+				{
+					lock(%ping_data);
+					$tdata = decode_json($ping_data{$host});
+					push(@{$tdata}, {
+						'success' => $success,
+						'rtt' => $rtt,
+						'stats_new' => 1,
+					});
+					$ping_data{$host} = encode_json($tdata);
+				}
+				{
+					lock(%resolved_hosts);
+					if ($success) {
+						$resolved_hosts{$host} = $ip;
+					}
+				}
+			}
+		}
+
+		sleep(1);
+	}
+
+	#$pinger->close(); // we are exiting anyway
+}
+
+sub getch_blocking { # thanks to halfdelay() we block with a timeout
+	my ($ch, $key);
+	while (1) {
+		($ch, $key) = getch();
+		if (defined($key)) { # special key
+			next;
+		}
+		if (!defined($ch)) {
+			last; # getch() error
+		}
+		if ($ch eq '-1') {
+			last; # no key pressed
+		}
+
+		# defined($ch) && $ch != -1
+
+		push(@pressed_keys, $ch);
+	}
+}
+
+sub init_curses() {
+	initscr();
+	noecho();
+	start_color();
+	curs_set(0);
+	halfdelay(1); # makes getch() to block with a timeout
+
+	getmaxyx(stdscr, $scr_max->{'y'}, $scr_max->{'x'});
+}
+
+sub handle_pressed_keys() {
+	my $key;
+	while (scalar @pressed_keys) {
+		$key = shift @pressed_keys;
+
+		if (lc($key) eq 'd') {
+			$config{'print_resolved_ip'} = !$config{'print_resolved_ip'};
+		}
+		if ($key eq 's') {
+			push(@stats_selector, shift @stats_selector);
+		}
+		if ($key eq 'S') {
+			unshift(@stats_selector, pop @stats_selector);
+		}
+		if (lc($key) eq 't') {
+			$config{'show_scale'} = !$config{'show_scale'};
+		}
+		if (lc($key) eq 'p') {
+			$config{'pause'} = !$config{'pause'};
+		}
+		if (lc($key) eq 'q') {
+			exit_curses_and_join_threads();
+			exit(0);
+		}
+	}
+}
+
+sub read_list_file_and_init_structs {
+	my $list_file = shift @_;
+	my $line;
+	my $hosts_cnt;
+
+	$hosts_cnt = 0;
+	open(HOSTLIST, '<', $list_file) or die("open($list_file): $!\n");
+	while ($line = <HOSTLIST>) {
+		if ($line =~ /^\s*$/ || $line =~ /^\s*#/) {
+			next; # skip empty and commented out lines
+		}
+		# trim() white-spaces
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+
+		$host_meta->{$line} = {
+			'line_pos' => $hosts_cnt + 3,
+			'stats' => Statistics::Descriptive::Full->new(),
+			'pkt_sent' => 0,
+			'pkt_recv' => 0,
+		};
+		++$hosts_cnt;
+
+		{
+			lock(%ping_data);
+			$ping_data{$line} = encode_json([]);
+		}
+
+	}
+	close(HOSTLIST) or die("close($list_file): $!\n");
+}
+
+sub start_ping_threads {
+	my $host;
+	my $thr;
+
+	foreach $host (keys %{$host_meta}) {
+		$thr = threads->create(\&ping_host, $host);
+		push(@thr_handles, $thr);
+	}
+}
+
+sub print_host_headers {
+	my $host;
+	my $pos;
+	my $s;
+
+	foreach $host (keys %{$host_meta}) {
+		if (!$config{'print_resolved_ip'}) {
+			$s = $host;
+		} else {
+			lock(%resolved_hosts);
+			if (!exists($resolved_hosts{$host})) {
+				$s = $host;
+			} else {
+				if (defined($resolved_hosts{$host})) {
+					$s = $resolved_hosts{$host};
+				} else {
+					$s = "DNS resolve failed";
+				}
+			}
+		}
+
+		$s = substr($s, 0, $hdr_len->{'host'}); # cut, if needed
+		addstr(
+			$host_meta->{$host}->{'line_pos'}, 0,
+			$s
+		);
+
+		# clear up stale text
+		$pos = length($s);
+		if ($pos < $hdr_len->{'host'}) {
+			addstr(
+				$host_meta->{$host}->{'line_pos'}, $pos,
+				' 'x($hdr_len->{'host'} - $pos)
+			);
+		}
+	}
+}
+
+sub calc_hdr_lengths {
+	$hdr_len->{'history'} = $scr_max->{'x'} -
+		$hdr_len->{'host'} - $hdr_len->{'sep'} - $hdr_len->{'rtt'} -
+		$hdr_len->{'sep'};
+	
+	if ($hdr_len->{'history'} < 10) {
+		die("Your screen is too small (columns=".$scr_max->{'x'}.").\n");
+	}
+}
+
+sub _print_ping_sample_scale {
+	my $sample = shift @_;
+	my $num;
+
+	if (!$config{'show_scale'}) {
+		return $sample->{'success'} ? '.' : 'X';
+	}
+
+	# show scale
+
+	if (!$sample->{'success'}) {
+		return '-';
+	}
+
+	$num = floor($sample->{'rtt'} / $config{'scale_ms'});
+	if ($num > 9) { # this should never happen
+		$num = '>';
+	} elsif ($num < 0) { # this should never happen
+		$num = '<';
+	}
+
+	return $num;
+}
+
+sub _print_ping_samples {
+	my $host = shift @_;
+	my @all_samples = @{shift @_};
+	my $pos;
+	my $i;
+	my $ch;
+	my $sample;
+
+	$pos = $scr_max->{'x'} - $hdr_len->{'history'};
+	for ($i = 0; $i < $hdr_len->{'history'}; ++$i, ++$pos) {
+		if ($i >= scalar @all_samples) { # no more data
+			$ch = ' ';
+		} else {
+			$sample = $all_samples[$i];
+
+			$ch = _print_ping_sample_scale($sample);
+
+			if ($sample->{'stats_new'}) {
+				$sample->{'stats_new'} = 0;
+				$host_meta->{$host}->{'pkt_sent'} += 1;
+				if ($sample->{'success'}) {
+					$host_meta->{$host}->{'stats'}->add_data($sample->{'rtt'});
+					$host_meta->{$host}->{'pkt_recv'} += 1;
+				}
+			}
+
+			# update the global data
+			$all_samples[$i] = $sample;
+		}
+		addstr(
+			$host_meta->{$host}->{'line_pos'},
+			$pos,
+			$ch
+		);
+	}
+}
+
+sub _get_rtt_sample_stats {
+	my $sample = shift @_;
+	my $host = shift @_;
+	my $val;
+	my $st = $stats_selector[0];
+	my $decpt = 1;
+	my $suffix = '';
+
+	if ($st eq "Last") {
+		$val = $sample->{'success'} ? $sample->{'rtt'} : undef;
+	}
+	elsif ($st eq "Loss%") {
+		if ($host_meta->{$host}->{'pkt_sent'} == 0) {
+			$val = undef;
+		} else {
+			$val = (
+				$host_meta->{$host}->{'pkt_recv'}
+				/
+				$host_meta->{$host}->{'pkt_sent'}
+				*
+				100
+			);
+			$val = 100 - $val;
+			$decpt = 0; # fmt
+			$suffix = '%';
+		}
+	}
+	elsif ($st eq "Avg") {
+		$val = $host_meta->{$host}->{'stats'}->mean();
+	}
+	elsif ($st eq "Min") {
+		$val = $host_meta->{$host}->{'stats'}->min();
+	}
+	elsif ($st eq "Max") {
+		$val = $host_meta->{$host}->{'stats'}->max();
+	}
+	elsif ($st eq "StDev") {
+		$val = $host_meta->{$host}->{'stats'}->standard_deviation();
+	}
+	elsif ($st eq "RX_cnt") {
+		$val = $host_meta->{$host}->{'stats'}->count();
+		if ($val != $host_meta->{$host}->{'pkt_recv'}) {
+			die("Sanity check failed");
+		}
+		$decpt = 0; # fmt
+	}
+	elsif ($st eq "TX_cnt") {
+		$val = $host_meta->{$host}->{'pkt_sent'};
+		$decpt = 0; # fmt
+	}
+	else {
+		die("Bad stats_selector value: $st");
+	}
+
+	if (!defined($val)) {
+		$val = '-';
+	} else {
+		$val = sprintf('%.'.$decpt.'f', $val);
+	}
+	return sprintf('%'.$hdr_len->{'rtt'}.'s', $val . $suffix);
+}
+
+sub _print_ping_rtt_info {
+	my $host = shift @_;
+	my @all_samples = @{shift @_};
+	my $sample;
+	my $ch;
+
+	$ch = sprintf(
+		'%'.$hdr_len->{'rtt'}.'s',
+		''
+	);
+	if (scalar @all_samples > 0) {
+		$sample = $all_samples[scalar @all_samples - 1]; # last sample
+		$ch = _get_rtt_sample_stats($sample, $host);
+	}
+	addstr(
+		$host_meta->{$host}->{'line_pos'},
+		$hdr_len->{'host'} + $hdr_len->{'sep'},
+		$ch
+	);
+}
+
+sub print_ping_data {
+	my $host;
+	my @all_samples;
+
+	{
+		lock(%ping_data);
+		foreach $host (keys %ping_data) {
+			@all_samples = @{decode_json($ping_data{$host})};
+
+			if (scalar @all_samples > $hdr_len->{'history'}) {
+				# cut into half; save only the more recent entries
+				@all_samples = splice @all_samples, scalar(@all_samples)/2;
+			}
+
+			_print_ping_samples($host, \@all_samples);
+			_print_ping_rtt_info($host, \@all_samples);
+
+			# update the global data
+			$ping_data{$host} = encode_json(\@all_samples);
+		}
+	}
+}
+
+sub print_main_headers() {
+	my $line;
+	my $fmt;
+	my $host_title;
+	my $s;
+	my $item;
+	my $pos;
+
+	$fmt = '%-'.$hdr_len->{'host'}.'s%'.$hdr_len->{'sep'}.'s%'.
+		$hdr_len->{'rtt'}.'s%'.$hdr_len->{'sep'}.'s%-'.
+		$hdr_len->{'history'}.'s';
+
+	if ($config{'print_resolved_ip'}) {
+		$host_title = 'Resolved IP';
+	} else {
+		$host_title = 'Hostname';
+	}
+
+	$line = sprintf($fmt,
+		$host_title, '',
+		$stats_selector[0], '',
+		'Ping history'.($config{'show_scale'} ? ' with scale' : '')
+	);
+
+	attron(A_BOLD);
+	addstr(2, 0, $line);
+	attroff(A_BOLD);
+	
+	$s = "Ping-Multi keys: ".
+		"DNS resolve | Stats | ".
+		"Time scale (per ".$config{'scale_ms'}."ms) | Pause ".
+		($config{'pause'} ? 'on ' : 'off')." | Quit";
+	addstr(0, 0, $s);
+	attron(A_BOLD);
+	for $item (qw/ DNS Stats Time Pause Quit /) {
+		$pos = index($s, $item);
+		if ($pos == -1) {
+			die("Unable to find token to make bold: $item");
+		}
+		addstr(0, $pos, substr($item, 0, 1));
+	}
+	attroff(A_BOLD);
+}
+
+sub main() {
+	if (scalar @ARGV != 1) {
+		die("Usage: $0 FILE_LIST\nPing all hosts from FILE_LIST.\n");
+	}
+
+	$config{'scale_ms'} = floor($timeout * 1000 / 10); # 0..9
+
+	read_list_file_and_init_structs($ARGV[0]);
+	start_ping_threads();
+
+	init_curses();
+	calc_hdr_lengths();
+
+	while(1) {
+		getch_blocking(); # with a very short timeout
+		handle_pressed_keys();
+
+		print_main_headers();
+		print_host_headers();
+		print_ping_data();
+
+		if (scalar threads->list(threads::running) != scalar keys %{$host_meta}) {
+			die("A worker thread exited unexpectedly.");
+		}
+
+		refresh();
+
+		sleep(0.3);
+	}
+}
+
+sub exit_curses_and_join_threads {
+	endwin();
+
+	for (@thr_handles) {
+		$_->detach(); # discard exit status
+	}
+}
+
+$SIG{__WARN__} = sub { # make warn() fatal
+	die($_[0]);
+};
+
+$SIG{__DIE__} = sub {
+	exit_curses_and_join_threads();
+};
+
+$SIG{INT} = sub {
+	exit_curses_and_join_threads();
+	exit(0);
+};
+
+main();
