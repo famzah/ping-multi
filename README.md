@@ -51,3 +51,9 @@ sudo ./ping-multi sample.list
 ```
 
 Making ICMP ping requests requires "root" privileges on Linux.
+
+If you want to use "ping-multi" only for one host, in order to benefit from the real-time statistics and history screen, you can use the following Bash trick:
+
+```bash
+sudo bash -c './ping-multi <(echo google.com)'
+```
