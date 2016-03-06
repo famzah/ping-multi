@@ -28,7 +28,7 @@ my $hdr_len = {
 	'rtt' => '6',
 	'history' => undef,
 };
-my @stats_selector = qw/ Last Loss% Avg Min Max StDev RX_cnt TX_cnt /;
+my @stats_selector = qw/ Last Loss% Avg Min Max StDev RX_cnt TX_cnt XX_cnt /;
 my $host_meta = {};
 my %config : shared = (
 	'print_resolved_ip' => 0,
@@ -336,6 +336,10 @@ sub _get_rtt_sample_stats {
 	}
 	elsif ($st eq "TX_cnt") {
 		$val = $host_meta->{$host}->{'pkt_sent'};
+		$decpt = 0; # fmt
+	}
+	elsif ($st eq "XX_cnt") { # Lost packets count
+		$val = $host_meta->{$host}->{'pkt_sent'} - $host_meta->{$host}->{'pkt_recv'};
 		$decpt = 0; # fmt
 	}
 	else {
