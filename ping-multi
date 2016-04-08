@@ -444,13 +444,27 @@ sub print_main_headers() {
 }
 
 sub main() {
+	my $single = 0;
+
+	if (scalar @ARGV > 0 && $ARGV[0] eq '-s') {
+		shift @ARGV; # remove the "-s" option
+		$single = 1;
+	}
 	if (scalar @ARGV != 1) {
-		die("Usage: $0 FILE_LIST\nPing all hosts from FILE_LIST.\n");
+		die(
+			"Usage: $0 [-s] FILE_LIST|HOST\n\n".
+			"Ping all hosts from FILE_LIST.\n".
+			"If the option \"-s\" is given, then ping only a single HOST.\n"
+		);
 	}
 
 	$config{'scale_ms'} = floor($timeout * 1000 / 10); # 0..9
 
-	read_list_file_and_init_structs($ARGV[0]);
+	if (!$single) {
+		read_list_file_and_init_structs($ARGV[0]);
+	} else {
+		init_structs_for_host($ARGV[0]); # single host
+	}
 	start_ping_threads();
 
 	init_curses();
