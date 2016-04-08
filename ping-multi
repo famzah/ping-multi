@@ -149,10 +149,7 @@ sub init_structs_for_host {
 	};
 	++$host_meta_cnt;
 
-	{
-		lock(%ping_data);
-		$ping_data{$line} = encode_json([]);
-	}
+	$ping_data{$line} = encode_json([]);
 }
 
 sub read_list_file_and_init_structs {
