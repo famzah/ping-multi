@@ -30,6 +30,7 @@ my $hdr_len = {
 };
 my @stats_selector = qw/ Last Loss% Avg Min Max StDev RX_cnt TX_cnt XX_cnt /;
 my $host_meta = {};
+my $host_meta_cnt = 0;
 my %config : shared = (
 	'print_resolved_ip' => 0,
 	'show_scale' => 0,
@@ -137,12 +138,27 @@ sub handle_pressed_keys() {
 	}
 }
 
+sub init_structs_for_host {
+	my $line = shift @_;
+
+	$host_meta->{$line} = {
+		'line_pos' => $host_meta_cnt + 3,
+		'stats' => Statistics::Descriptive::Full->new(),
+		'pkt_sent' => 0,
+		'pkt_recv' => 0,
+	};
+	++$host_meta_cnt;
+
+	{
+		lock(%ping_data);
+		$ping_data{$line} = encode_json([]);
+	}
+}
+
 sub read_list_file_and_init_structs {
 	my $list_file = shift @_;
 	my $line;
-	my $hosts_cnt;
 
-	$hosts_cnt = 0;
 	open(HOSTLIST, '<', $list_file) or die("open($list_file): $!\n");
 	while ($line = <HOSTLIST>) {
 		if ($line =~ /^\s*$/ || $line =~ /^\s*#/) {
@@ -152,19 +168,7 @@ sub read_list_file_and_init_structs {
 		$line =~ s/^\s+//;
 		$line =~ s/\s+$//;
 
-		$host_meta->{$line} = {
-			'line_pos' => $hosts_cnt + 3,
-			'stats' => Statistics::Descriptive::Full->new(),
-			'pkt_sent' => 0,
-			'pkt_recv' => 0,
-		};
-		++$hosts_cnt;
-
-		{
-			lock(%ping_data);
-			$ping_data{$line} = encode_json([]);
-		}
-
+		init_structs_for_host($line);
 	}
 	close(HOSTLIST) or die("close($list_file): $!\n");
 }
