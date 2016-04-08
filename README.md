@@ -29,6 +29,8 @@ The results are displayed in an interactive curses text console which features t
   - simple view showing received (.) and lost (X) reply packets
   - scaled view which additionally visualizes the RTT value using the numbers between 0 and 9
 
+You can select the statistics forwards and backwards using the lower "s" and upper "S" keys, similar to the "Vim" behavior.
+
 # Installation
 
 The program depends on the following additional Perl modules:
@@ -49,3 +51,9 @@ sudo ./ping-multi sample.list
 ```
 
 Making ICMP ping requests requires "root" privileges on Linux.
+
+If you want to use "ping-multi" only for one host, in order to benefit from the real-time statistics and history screen, you can use the following Bash trick:
+
+```bash
+sudo bash -c './ping-multi <(echo google.com)'
+```
