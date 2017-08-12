@@ -43,12 +43,23 @@ sub ping_host {
 	my $pinger = Net::Ping->new('icmp', $timeout);
 	my ($success, $rtt, $ip);
 	my $tdata;
+	my ($pinger_target, $needs_resolve);
 
 	$pinger->hires();
 
 	while (1) {
 		if (!$config{'pause'}) {
-			($success, $rtt, $ip) = $pinger->ping($host);
+			{
+				lock(%resolved_hosts);
+				if (!exists($resolved_hosts{$host}) || !defined($resolved_hosts{$host})) {
+					$pinger_target = $host;
+					$needs_resolve = 1;
+				} else {
+					$pinger_target = $resolved_hosts{$host};
+					$needs_resolve = 0;
+				}
+			}
+			($success, $rtt, $ip) = $pinger->ping($pinger_target);
 
 			# discard if pause was hit, and we were in progress ping'ing
 			if (!$config{'pause'}) {
@@ -62,14 +73,18 @@ sub ping_host {
 					push(@{$tdata}, {
 						'success' => $success,
 						'rtt' => $rtt,
+						'ip' => $ip,
 						'stats_new' => 1,
 					});
 					$ping_data{$host} = encode_json($tdata);
 				}
-				{
+				if ($needs_resolve) {
 					lock(%resolved_hosts);
+
 					if ($success) {
 						$resolved_hosts{$host} = $ip;
+					} else {
+						$resolved_hosts{$host} = undef;
 					}
 				}
 			}
@@ -233,13 +248,25 @@ sub _print_ping_sample_scale {
 	my $num;
 
 	if (!$config{'show_scale'}) {
-		return $sample->{'success'} ? '.' : 'X';
+		if ($sample->{'success'}) {
+			return '.';
+		} else {
+			if (!$sample->{'ip'}) {
+				return 'E'; # General error
+			} else {
+				return 'X';
+			}
+		}
 	}
 
 	# show scale
 
 	if (!$sample->{'success'}) {
-		return '-';
+		if (!$sample->{'ip'}) {
+			return 'E'; # General error
+		} else {
+			return '-';
+		}
 	}
 
 	$num = floor($sample->{'rtt'} / $config{'scale_ms'});
