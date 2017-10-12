@@ -480,7 +480,7 @@ sub main() {
 	    'file|f=s' => \$file
 	);
 
-	if (scalar @ARGV == 0) {
+	if (scalar @ARGV == 0 && $file eq '') {
 		die(
 			"Usage: $0 [-f FILE_LIST] [HOST]...\n\n".
 			"Ping all hosts from FILE_LIST and HOSTs\n"
