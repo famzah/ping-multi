@@ -47,13 +47,11 @@ sudo apt-get install libcurses-perl libjson-perl libstatistics-descriptive-perl
 # Example
 
 ```bash
-sudo ./ping-multi sample.list
+sudo ./ping-multi google.com github.com
+```
+
+```bash
+sudo ./ping-multi -f sample.list
 ```
 
 Making ICMP ping requests requires "root" privileges on Linux.
-
-You can also use "ping-multi" only for one host, in order to benefit from the real-time statistics and history screen:
-
-```bash
-sudo ./ping-multi -s google.com
-```
