@@ -160,6 +160,10 @@ sub handle_pressed_keys() {
 sub init_structs_for_host {
 	my $line = shift @_;
 
+	if (exists($host_meta->{$line})) {
+		return;
+	}
+
 	$host_meta->{$line} = {
 		'line_pos' => $host_meta_cnt + 3,
 		'stats' => Statistics::Descriptive::Full->new(),
