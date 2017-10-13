@@ -15,6 +15,7 @@ use JSON;
 use Time::HiRes qw(sleep usleep);
 use POSIX;
 use Statistics::Descriptive;
+use File::Basename;
 
 my $timeout = 1;
 my %ping_data : shared = ();
@@ -482,8 +483,8 @@ sub main() {
 
 	if (scalar @ARGV == 0 && $file eq '') {
 		die(
-			"Usage: $0 [-f FILE_LIST] [HOST]...\n\n".
-			"Ping all hosts from FILE_LIST and HOSTs\n"
+			"Usage: ".basename($0)." [-f FILE_LIST] [HOST]...\n\n".
+			"Ping all hosts from FILE_LIST and HOSTs.\n"
 		);
 	}
 
