@@ -7,6 +7,9 @@ use Net::Ping;
 use threads;
 use threads::shared;
 
+use Getopt::Long qw(GetOptions);
+Getopt::Long::Configure qw(gnu_getopt);
+
 use Curses;
 use JSON;
 use Time::HiRes qw(sleep usleep);
@@ -471,26 +474,27 @@ sub print_main_headers() {
 }
 
 sub main() {
-	my $single = 0;
+	my $file   = '';
 
-	if (scalar @ARGV > 0 && $ARGV[0] eq '-s') {
-		shift @ARGV; # remove the "-s" option
-		$single = 1;
-	}
-	if (scalar @ARGV != 1) {
+	GetOptions(
+	    'file|f=s' => \$file
+	);
+
+	if (scalar @ARGV == 0 && $file eq '') {
 		die(
-			"Usage: $0 [-s] FILE_LIST|HOST\n\n".
-			"Ping all hosts from FILE_LIST.\n".
-			"If the option \"-s\" is given, then ping only a single HOST.\n"
+			"Usage: $0 [-f FILE_LIST] [HOST]...\n\n".
+			"Ping all hosts from FILE_LIST and HOSTs\n"
 		);
 	}
 
 	$config{'scale_ms'} = floor($timeout * 1000 / 10); # 0..9
 
-	if (!$single) {
-		read_list_file_and_init_structs($ARGV[0]);
-	} else {
-		init_structs_for_host($ARGV[0]); # single host
+	if ($file ne '') {
+		read_list_file_and_init_structs($file);
+	}
+
+	foreach my $ip (@ARGV) {
+		init_structs_for_host($ip);
 	}
 	start_ping_threads();
 
