@@ -474,18 +474,28 @@ sub print_main_headers() {
 	attroff(A_BOLD);
 }
 
+sub usage() {
+	die(
+		"Usage: ".basename($0)." [-f FILE_LIST] [HOST]...\n\n".
+		"Ping all hosts from FILE_LIST and HOSTs.\n"
+	);
+}
+
 sub main() {
-	my $file   = '';
+	my $file = '';
+	my $help;
 
 	GetOptions(
-	    'file|f=s' => \$file
+	    'file|f=s' => \$file,
+	    'help|h' => \$help,
 	);
 
+	if ($help) {
+		usage();
+	}
+
 	if (scalar @ARGV == 0 && $file eq '') {
-		die(
-			"Usage: ".basename($0)." [-f FILE_LIST] [HOST]...\n\n".
-			"Ping all hosts from FILE_LIST and HOSTs.\n"
-		);
+		usage();
 	}
 
 	$config{'scale_ms'} = floor($timeout * 1000 / 10); # 0..9
