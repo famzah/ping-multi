@@ -12,7 +12,7 @@ Getopt::Long::Configure qw(gnu_getopt);
 
 use Curses;
 use JSON;
-use Time::HiRes qw(sleep usleep);
+use Time::HiRes qw(sleep usleep time);
 use POSIX;
 use Statistics::Descriptive;
 use File::Basename;
@@ -54,6 +54,7 @@ sub ping_host {
 	$pinger->hires();
 
 	while (1) {
+		my $ping_begin = time;
 		if (!$config{'pause'}) {
 			{
 				lock(%resolved_hosts);
@@ -96,12 +97,15 @@ sub ping_host {
 			}
 		}
 
-		sleep(1);
 		if ($config{'sync_ping'}) {
 			lock($sync_ping_cnt);
 			$sync_ping_cnt++;
 			cond_wait($sync_ping_cnt) until $sync_ping_cnt == 0;
 		}
+
+		# sleep till one second from ping beginning elapsed.
+		my $sleep_time = 1 - (time - $ping_begin);
+		sleep($sleep_time) if ($sleep_time > 0);
 	}
 
 	#$pinger->close(); // we are exiting anyway
