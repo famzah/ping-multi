@@ -53,5 +53,8 @@ sudo ./ping-multi google.com github.com
 ```bash
 sudo ./ping-multi -f sample.list
 ```
+```bash
+sudo ./ping-multi -s 192.168.0.{1,2,5,20}
+```
 
 Making ICMP ping requests requires "root" privileges on Linux.
