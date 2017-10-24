@@ -426,13 +426,6 @@ sub print_ping_data {
 	my $host;
 	my @all_samples;
 
-	if ($config{'sync_ping'}) {
-		lock($sync_ping_cnt);
-		return if ($sync_ping_cnt < keys %ping_data);
-		$sync_ping_cnt = 0;
-		cond_broadcast($sync_ping_cnt);
-	}
-
 	{
 		lock(%ping_data);
 		foreach $host (keys %ping_data) {
@@ -450,6 +443,22 @@ sub print_ping_data {
 			$ping_data{$host} = encode_json(\@all_samples);
 		}
 	}
+}
+
+sub trigger_sync_ping {
+    if (!$config{'sync_ping'}) {
+        return;
+    }
+
+    lock($sync_ping_cnt);
+    lock(%ping_data);
+
+    if ($sync_ping_cnt < keys %ping_data) {
+        return ;
+    }
+
+    $sync_ping_cnt = 0;
+    cond_broadcast($sync_ping_cnt);
 }
 
 sub print_main_headers() {
@@ -545,6 +554,7 @@ sub main() {
 		print_main_headers();
 		print_host_headers();
 		print_ping_data();
+		trigger_sync_ping();
 
 		if (scalar threads->list(threads::running) != scalar keys %{$host_meta}) {
 			die("A worker thread exited unexpectedly.");
