@@ -507,11 +507,11 @@ sub print_main_headers() {
 
 sub usage() {
 	die(
-		"Usage: ".basename($0)." [-s] [-f FILE] [HOST]...\n".
+		"Usage: ".basename($0)." [-S] [-f FILE] [HOST]...\n".
 		"Ping all hosts from FILE and HOSTs.\n\n".
 		"  -f, --file=FILE     read list of hosts from file\n".
 		"  -h, --help          display this help and exit\n".
-		"  -s, --sync-ping     send for all hosts same ammount of ping requests\n"
+		"  -S, --sync-ping     send for all hosts same ammount of ping requests\n"
 	);
 }
 
@@ -522,7 +522,7 @@ sub main() {
 	GetOptions(
 	    'file|f=s' => \$file,
 	    'help|h' => \$help,
-	    'sync-ping|s' => \$config{'sync_ping'},
+	    'sync-ping|S' => \$config{'sync_ping'},
 	);
 
 	if ($help) {
