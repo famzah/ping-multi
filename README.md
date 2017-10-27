@@ -46,15 +46,19 @@ sudo apt-get install libcurses-perl libjson-perl libstatistics-descriptive-perl
 
 # Example
 
+Ping multiple hosts specified directly on the command-line; you can also provide just one host:
 ```bash
 sudo ./ping-multi google.com github.com
 ```
 
+Ping multiple hosts specified in a file; you can also add more single hosts directly as additional command-line arguments:
 ```bash
 sudo ./ping-multi -f sample.list
 ```
+
+Ping hosts synchronously; [this comment](https://github.com/famzah/ping-multi/pull/2#issuecomment-339098285) explains when this ping method is useful:
 ```bash
-sudo ./ping-multi -S 192.168.0.{1,2,5,20}
+sudo ./ping-multi -S 192.168.0.1 192.168.0.2 192.168.0.15
 ```
 
 Making ICMP ping requests requires "root" privileges on Linux.
