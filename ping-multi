@@ -511,7 +511,7 @@ sub usage() {
 		"Ping all hosts from FILE and HOSTs.\n\n".
 		"  -f, --file=FILE     read list of hosts from file\n".
 		"  -h, --help          display this help and exit\n".
-		"  -S, --sync-ping     send for all hosts same ammount of ping requests\n"
+		"  -S, --sync-ping     send the same amount of ping requests for all hosts\n"
 	);
 }
 
