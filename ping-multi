@@ -11,7 +11,7 @@ use Getopt::Long qw(GetOptions);
 Getopt::Long::Configure qw(gnu_getopt);
 
 use Curses;
-use JSON;
+use JSON::PP;
 use Time::HiRes qw(sleep usleep time);
 use POSIX;
 use Statistics::Descriptive;
