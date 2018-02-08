@@ -507,11 +507,12 @@ sub print_main_headers() {
 
 sub usage() {
 	die(
-		"Usage: ".basename($0)." [-S] [-f FILE] [HOST]...\n".
+		"Usage: ".basename($0)." [-S] [-f FILE] [-W timeout] [HOST]...\n".
 		"Ping all hosts from FILE and HOSTs.\n\n".
 		"  -f, --file=FILE     read list of hosts from file\n".
 		"  -h, --help          display this help and exit\n".
-		"  -S, --sync-ping     send the same amount of ping requests for all hosts\n"
+		"  -S, --sync-ping     send the same amount of ping requests for all hosts\n".
+		"  -W, --wait=SECS     timeout in seconds to wait for a ping reply\n"
 	);
 }
 
@@ -523,6 +524,7 @@ sub main() {
 	    'file|f=s' => \$file,
 	    'help|h' => \$help,
 	    'sync-ping|S' => \$config{'sync_ping'},
+	    'wait|W=f' => \$timeout,
 	);
 
 	if ($help) {
