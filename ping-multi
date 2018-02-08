@@ -18,6 +18,7 @@ use Statistics::Descriptive;
 use File::Basename;
 
 my $timeout = 1;
+my $ping_interval = 1;
 my %ping_data : shared = ();
 my %resolved_hosts : shared = ();
 my $sync_ping_cnt : shared = 0;
@@ -104,7 +105,7 @@ sub ping_host {
 		}
 
 		# sleep till one second from ping beginning elapsed.
-		my $sleep_time = 1 - (time - $ping_begin);
+		my $sleep_time = $ping_interval - (time - $ping_begin);
 		sleep($sleep_time) if ($sleep_time > 0);
 	}
 
@@ -512,7 +513,8 @@ sub usage() {
 		"  -f, --file=FILE     read list of hosts from file\n".
 		"  -h, --help          display this help and exit\n".
 		"  -S, --sync-ping     send the same amount of ping requests for all hosts\n".
-		"  -W, --wait=SECS     timeout in seconds to wait for a ping reply\n"
+		"  -W, --wait=SECS     timeout in seconds to wait for a ping reply\n".
+		"  -i, --interval=SECS time in seconds between sending each request\n"
 	);
 }
 
@@ -525,6 +527,7 @@ sub main() {
 	    'help|h' => \$help,
 	    'sync-ping|S' => \$config{'sync_ping'},
 	    'wait|W=f' => \$timeout,
+	    'interval|i=f' => \$ping_interval,
 	);
 
 	if ($help) {
