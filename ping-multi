@@ -139,7 +139,8 @@ sub init_curses() {
 	curs_set(0);
 	halfdelay(1); # makes getch() to block with a timeout
 
-	getmaxyx(stdscr, $scr_max->{'y'}, $scr_max->{'x'});
+	$scr_max->{'y'} =  getmaxy(stdscr);
+	$scr_max->{'x'} =  getmaxx(stdscr);
 }
 
 sub handle_pressed_keys() {
