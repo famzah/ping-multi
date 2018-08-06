@@ -493,7 +493,7 @@ sub print_main_headers() {
 	$line = sprintf($fmt,
 		$host_title, '',
 		$stats_selector[0], '',
-		'Ping history'.($config{'show_scale'} ? ' with scale' : '')
+		'Ping history'.($config{'show_scale'} ? ' with scale per '.$config{'scale_ms'}.' ms' : '')
 	);
 
 	attron(A_BOLD);
@@ -502,7 +502,7 @@ sub print_main_headers() {
 	
 	$s = "Ping-Multi keys: ".
 		"DNS resolve | Stats | ".
-		"Time scale (per ".$config{'scale_ms'}."ms) | Pause ".
+		"Time scale | Pause ".
 		($config{'pause'} ? 'on ' : 'off')." | Quit";
 	addstr(0, 0, $s);
 	attron(A_BOLD);
