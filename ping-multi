@@ -142,6 +142,17 @@ sub init_curses() {
 	$scr_max->{'x'} =  getmaxx(stdscr);
 }
 
+sub make_last_element_first {
+	my $arr = shift @_;
+	my $reverse = shift @_;
+
+	if (!$reverse) {
+		push(@{$arr}, shift @{$arr});
+	} else {
+		unshift(@{$arr}, pop @{$arr});
+	}
+}
+
 sub handle_pressed_keys() {
 	my $key;
 	while (scalar @pressed_keys) {
@@ -151,10 +162,10 @@ sub handle_pressed_keys() {
 			$config{'print_resolved_ip'} = !$config{'print_resolved_ip'};
 		}
 		if ($key eq 's') {
-			push(@stats_selector, shift @stats_selector);
+			make_last_element_first(\@stats_selector, 0);
 		}
 		if ($key eq 'S') {
-			unshift(@stats_selector, pop @stats_selector);
+			make_last_element_first(\@stats_selector, 1);
 		}
 		if (lc($key) eq 't') {
 			$config{'show_scale'} = !$config{'show_scale'};
