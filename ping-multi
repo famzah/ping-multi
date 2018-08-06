@@ -36,7 +36,6 @@ my $hdr_len = {
 };
 my @stats_selector = qw/ Last Loss% Avg Min Max StDev RX_cnt TX_cnt XX_cnt /;
 my $host_meta = {};
-my $host_meta_cnt = 0;
 my %config : shared = (
 	'print_resolved_ip' => 0,
 	'show_scale' => 0,
@@ -178,12 +177,11 @@ sub init_structs_for_host {
 	}
 
 	$host_meta->{$line} = {
-		'line_pos' => $host_meta_cnt + 3,
+		'line_pos' => (scalar keys %{$host_meta}) + 3,
 		'stats' => Statistics::Descriptive::Full->new(),
 		'pkt_sent' => 0,
 		'pkt_recv' => 0,
 	};
-	++$host_meta_cnt;
 
 	$ping_data{$line} = encode_json([]);
 }
