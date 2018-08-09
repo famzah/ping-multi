@@ -352,7 +352,7 @@ sub _print_ping_samples {
 sub _get_rtt_sample_stats {
 	my $sample = shift @_;
 	my $host = shift @_;
-	my $val;
+	my ($val, $raw_val);
 	my $st = $stats_selector[0];
 	my $decpt = 1;
 	my $suffix = '';
@@ -407,19 +407,22 @@ sub _get_rtt_sample_stats {
 		die("Bad stats_selector value: $st");
 	}
 
+	$raw_val = $val;
 	if (!defined($val)) {
 		$val = '-';
 	} else {
 		$val = sprintf('%.'.$decpt.'f', $val);
 	}
-	return sprintf('%'.$hdr_len->{'rtt'}.'s', $val . $suffix);
+	return (sprintf('%'.$hdr_len->{'rtt'}.'s', $val . $suffix), $raw_val, $suffix);
 }
 
-sub _print_ping_rtt_info {
+sub get_ping_rtt_info {
 	my $host = shift @_;
 	my @all_samples = @{shift @_};
 	my $sample;
 	my $ch;
+	my $val = undef;
+	my $suffix = undef;
 
 	$ch = sprintf(
 		'%'.$hdr_len->{'rtt'}.'s',
@@ -427,8 +430,19 @@ sub _print_ping_rtt_info {
 	);
 	if (scalar @all_samples > 0) {
 		$sample = $all_samples[scalar @all_samples - 1]; # last sample
-		$ch = _get_rtt_sample_stats($sample, $host);
+		($ch, $val, $suffix) = _get_rtt_sample_stats($sample, $host);
 	}
+
+	return ($ch, $val, $suffix);
+}
+
+sub _print_ping_rtt_info {
+	my $host = shift @_;
+	my $all_samples_ref = shift @_;
+	my $ch;
+
+	($ch, undef, undef) = get_ping_rtt_info($host, $all_samples_ref);
+
 	addstr(
 		$host_meta->{$host}->{'line_pos'},
 		$hdr_len->{'host'} + $hdr_len->{'sep'},
