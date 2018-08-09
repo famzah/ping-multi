@@ -43,6 +43,7 @@ my %config : shared = (
 	'pause' => 0,
 	'sync_ping' => 0,
 );
+my $hosts_print_line_offset = 3; # const
 
 sub ping_host {
 	my $host = shift;
@@ -182,16 +183,18 @@ sub handle_pressed_keys() {
 
 sub init_structs_for_host {
 	my $line = shift @_;
+	my $pos = (scalar keys %{$host_meta}) + $hosts_print_line_offset;
 
 	if (exists($host_meta->{$line})) {
 		return;
 	}
 
 	$host_meta->{$line} = {
-		'line_pos' => (scalar keys %{$host_meta}) + 3,
+		'line_pos' => $pos,
 		'stats' => Statistics::Descriptive::Full->new(),
 		'pkt_sent' => 0,
 		'pkt_recv' => 0,
+		'init_line_pos' => $pos,
 	};
 
 	$ping_data{$line} = encode_json([]);
