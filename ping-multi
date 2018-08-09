@@ -35,6 +35,7 @@ my $hdr_len = {
 	'history' => undef,
 };
 my @stats_selector = qw/ Last Loss% Avg Min Max StDev RX_cnt TX_cnt XX_cnt /;
+my @sort_selector = ('None', 'Asc', 'Desc');
 my $host_meta = {};
 my %config : shared = (
 	'print_resolved_ip' => 0,
@@ -167,6 +168,12 @@ sub handle_pressed_keys() {
 		}
 		if ($key eq 'S') {
 			make_last_element_first(\@stats_selector, 1);
+		}
+		if ($key eq 'o') {
+			make_last_element_first(\@sort_selector, 0);
+		}
+		if ($key eq 'O') {
+			make_last_element_first(\@sort_selector, 1);
 		}
 		if (lc($key) eq 't') {
 			$config{'show_scale'} = !$config{'show_scale'};
@@ -454,22 +461,19 @@ sub print_ping_data {
 	my $host;
 	my @all_samples;
 
-	{
-		lock(%ping_data);
-		foreach $host (keys %ping_data) {
-			@all_samples = @{decode_json($ping_data{$host})};
+	foreach $host (keys %ping_data) {
+		@all_samples = @{decode_json($ping_data{$host})};
 
-			if (scalar @all_samples > $hdr_len->{'history'}) {
-				# cut into half; save only the more recent entries
-				@all_samples = splice @all_samples, scalar(@all_samples)/2;
-			}
-
-			_print_ping_samples($host, \@all_samples);
-			_print_ping_rtt_info($host, \@all_samples);
-
-			# update the global data
-			$ping_data{$host} = encode_json(\@all_samples);
+		if (scalar @all_samples > $hdr_len->{'history'}) {
+			# cut into half; save only the more recent entries
+			@all_samples = splice @all_samples, scalar(@all_samples)/2;
 		}
+
+		_print_ping_samples($host, \@all_samples);
+		_print_ping_rtt_info($host, \@all_samples);
+
+		# update the global data
+		$ping_data{$host} = encode_json(\@all_samples);
 	}
 }
 
@@ -496,34 +500,52 @@ sub print_main_headers() {
 	my $s;
 	my $item;
 	my $pos;
+	my $arrow;
+	my $stats_title;
+	my $arrow_placeholder = "\1";
 
 	$fmt = '%-'.$hdr_len->{'host'}.'s%'.$hdr_len->{'sep'}.'s%'.
 		$hdr_len->{'rtt'}.'s%'.$hdr_len->{'sep'}.'s%-'.
 		$hdr_len->{'history'}.'s';
 
 	if ($config{'print_resolved_ip'}) {
-		$host_title = 'Resolved IP';
+		$host_title = 'IP address';
 	} else {
 		$host_title = 'Hostname';
 	}
 
+	$stats_title = $stats_selector[0];
+	if ($sort_selector[0] ne 'None') {
+		$stats_title .= $arrow_placeholder; # leave space for the arrow
+	}
+
 	$line = sprintf($fmt,
 		$host_title, '',
-		$stats_selector[0], '',
+		$stats_title, '',
 		'Ping history'.($config{'show_scale'} ? ' with scale per '.$config{'scale_ms'}.' ms' : '')
 	);
+
+	if ($sort_selector[0] ne 'None') {
+		# https://ux.stackexchange.com/questions/37564/use-up-or-down-arrow-to-represent-sort-ascending-at-table-header
+		if ($sort_selector[0] eq 'Asc') {
+			$arrow = '▲';
+		} else {
+			$arrow = '▼';
+		}
+		$line =~ s/$arrow_placeholder/$arrow/;
+	}
 
 	attron(A_BOLD);
 	addstr(2, 0, $line);
 	attroff(A_BOLD);
 	
 	$s = "Ping-Multi keys: ".
-		"DNS resolve | Stats | ".
+		"DNS resolve | Stats | Order by | ".
 		"Time scale | Pause ".
 		($config{'pause'} ? 'on ' : 'off')." | Quit";
 	addstr(0, 0, $s);
 	attron(A_BOLD);
-	for $item (qw/ DNS Stats Time Pause Quit /) {
+	for $item (qw/ DNS Stats Time Pause Order Quit /) {
 		$pos = index($s, $item);
 		if ($pos == -1) {
 			die("Unable to find token to make bold: $item");
@@ -531,6 +553,80 @@ sub print_main_headers() {
 		addstr(0, $pos, substr($item, 0, 1));
 	}
 	attroff(A_BOLD);
+}
+
+sub sort_hosts() {
+	my $host;
+	my @sorted_hosts;
+	my $all_samples_ref;
+	my $host_rtt = {};
+	my $pos;
+	my $val;
+	my $dm = 1;
+
+	foreach $host (keys %ping_data) {
+		$all_samples_ref = decode_json($ping_data{$host});
+		(undef, $val, undef) = get_ping_rtt_info($host, $all_samples_ref);
+		$host_rtt->{$host} = $val;
+	}
+
+	@sorted_hosts = sort {
+		# undefined hosts are always at the bottom
+		if (!defined($host_rtt->{$a}) && !defined($host_rtt->{$b})) {
+			return
+				$host_meta->{$a}->{'init_line_pos'}
+				<=>
+				$host_meta->{$b}->{'init_line_pos'}
+			;
+		}
+		if (!defined($host_rtt->{$a})) {
+			return +1;
+		}
+		if (!defined($host_rtt->{$b})) {
+			return -1;
+		}
+
+		# use default init order if no "Order by" is selected
+		if ($sort_selector[0] eq 'None') {
+			return
+				$host_meta->{$a}->{'init_line_pos'}
+				<=>
+				$host_meta->{$b}->{'init_line_pos'}
+			;
+		}
+
+		sub sub_sort {
+			my $a = shift @_;
+			my $b = shift @_;
+			my $host_rtt = shift @_;
+			my $host_meta = shift @_;
+
+			if ($host_rtt->{$a} != $host_rtt->{$b}) {
+				return $host_rtt->{$a} <=> $host_rtt->{$b};
+			} else {
+				# on equal RTT values, fall back to init line position
+				return
+					$host_meta->{$a}->{'init_line_pos'}
+					<=>
+					$host_meta->{$b}->{'init_line_pos'}
+				;
+			}
+		};
+
+		my $res = sub_sort($a, $b, $host_rtt, $host_meta);
+
+		if ($sort_selector[0] eq 'Desc') {
+			return -$res;
+		} else {
+			return $res;
+		}
+	} keys %{$host_meta};
+
+	$pos = $hosts_print_line_offset;
+	foreach $host (@sorted_hosts) {
+		$host_meta->{$host}->{'line_pos'} = $pos;
+		++$pos;
+	}
 }
 
 sub usage() {
@@ -583,9 +679,16 @@ sub main() {
 		getch_blocking(); # with a very short timeout
 		handle_pressed_keys();
 
-		print_main_headers();
-		print_host_headers();
-		print_ping_data();
+		{
+			lock(%ping_data);
+
+			sort_hosts();
+
+			print_main_headers();
+			print_host_headers();
+			print_ping_data();
+		}
+
 		trigger_sync_ping();
 
 		if (scalar threads->list(threads::running) != scalar keys %{$host_meta}) {
