@@ -571,6 +571,15 @@ sub sort_hosts() {
 	}
 
 	@sorted_hosts = sort {
+		# use default init order if no "Order by" is selected
+		if ($sort_selector[0] eq 'None') {
+			return
+				$host_meta->{$a}->{'init_line_pos'}
+				<=>
+				$host_meta->{$b}->{'init_line_pos'}
+			;
+		}
+
 		# undefined hosts are always at the bottom
 		if (!defined($host_rtt->{$a}) && !defined($host_rtt->{$b})) {
 			return
@@ -584,15 +593,6 @@ sub sort_hosts() {
 		}
 		if (!defined($host_rtt->{$b})) {
 			return -1;
-		}
-
-		# use default init order if no "Order by" is selected
-		if ($sort_selector[0] eq 'None') {
-			return
-				$host_meta->{$a}->{'init_line_pos'}
-				<=>
-				$host_meta->{$b}->{'init_line_pos'}
-			;
 		}
 
 		sub sub_sort {
