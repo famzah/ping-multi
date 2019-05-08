@@ -350,10 +350,12 @@ sub _print_ping_samples {
 				$host_meta->{$host}->{'pkt_sent'} += 1;
 				if ($host_meta->{$host}->{'previous'} < 0) {
 					$host_meta->{$host}->{'previous'} = $sample->{'success'};
-					if ($sample->{'success'}) {
-						print LOGFILE "$now $host STARTSUP\n";
-					} else {
-						print LOGFILE "$now $host STARTSDOWN\n";
+					if ($logfile ne "") {
+						if ($sample->{'success'}) {
+							print LOGFILE "$now $host STARTSUP\n";
+						} else {
+							print LOGFILE "$now $host STARTSDOWN\n";
+						}
 					}
 				}
 				if ($sample->{'success'}) {
@@ -362,12 +364,14 @@ sub _print_ping_samples {
 				}
 				if ($host_meta->{$host}->{'previous'} ne $sample->{'success'}) {
 					if ($logfile ne "") {
-						if ($sample->{'success'}) {
-							print LOGFILE "$now $host UP\n";
-						} else {
-							print LOGFILE "$now $host DOWN\n";
+						if ($logfile ne "") {
+							if ($sample->{'success'}) {
+								print LOGFILE "$now $host UP\n";
+							} else {
+								print LOGFILE "$now $host DOWN\n";
+							}
+							$host_meta->{$host}->{'previous'} = $sample->{'success'};
 						}
-						$host_meta->{$host}->{'previous'} = $sample->{'success'};
 					}
 				}
 			}
