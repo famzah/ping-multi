@@ -331,7 +331,6 @@ sub _print_ping_samples {
 	my $now;
 
 	if ($logfile ne "") {
-		open (LOGFILE, ">>" . $logfile);
 		my ($second, $minute, $hour, $day, $month, $year) = (localtime(time))[0..5];
 		$now = sprintf ("%d-%02d-%02d %02d:%02d:%02d", $year + 1900, $month + 1, $day, $hour, $minute, $second);
 	}
@@ -382,9 +381,6 @@ sub _print_ping_samples {
 			$pos,
 			$ch
 		);
-	}
-	if ($logfile ne "") {
-		close (LOGFILE);
 	}
 }
 
@@ -696,12 +692,12 @@ sub main() {
 	}
 
 	if ($logfile ne "") {
-		unless (-r $logfile && -w $logfile) {
-			#print "file exists, I can read and write it";
-		#} else {
-			open (LOGFILE, ">" . $logfile) || die "Can't create logfile $logfile\n";
-			close (LOGFILE);
-		}
+		open(LOGFILE, ">>", $logfile) || die("Can't open logfile \"$logfile\": $!\n");
+		# print to file immediately (no buffering)
+		#   https://perl.plover.com/FAQs/Buffering.html
+		my $ofh = select LOGFILE;
+		$| = 1;
+		select $ofh;
 	}
 
 	$config{'scale_ms'} = floor($timeout * 1000 / 10); # 0..9
