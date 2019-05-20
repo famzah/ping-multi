@@ -45,6 +45,7 @@ my %config : shared = (
 	'sync_ping' => 0,
 );
 my $hosts_print_line_offset = 3; # const
+my $logfile = "";
 
 sub ping_host {
 	my $host = shift;
@@ -202,6 +203,7 @@ sub init_structs_for_host {
 		'pkt_sent' => 0,
 		'pkt_recv' => 0,
 		'init_line_pos' => $pos,
+		'previous' => -1,
 	};
 
 	$ping_data{$line} = encode_json([]);
@@ -326,6 +328,13 @@ sub _print_ping_samples {
 	my $i;
 	my $ch;
 	my $sample;
+	my $now;
+
+	if ($logfile ne "") {
+		open (LOGFILE, ">>" . $logfile);
+		my ($second, $minute, $hour, $day, $month, $year) = (localtime(time))[0..5];
+		$now = sprintf ("%d%02d%02d %02d:%02d:%02d", $year + 1900, $month + 1, $day, $hour, $minute, $second);
+	}
 
 	$pos = $scr_max->{'x'} - $hdr_len->{'history'};
 	for ($i = 0; $i < $hdr_len->{'history'}; ++$i, ++$pos) {
@@ -339,9 +348,31 @@ sub _print_ping_samples {
 			if ($sample->{'stats_new'}) {
 				$sample->{'stats_new'} = 0;
 				$host_meta->{$host}->{'pkt_sent'} += 1;
+				if ($host_meta->{$host}->{'previous'} < 0) {
+					$host_meta->{$host}->{'previous'} = $sample->{'success'};
+					if ($logfile ne "") {
+						if ($sample->{'success'}) {
+							print LOGFILE "$now $host STARTSUP\n";
+						} else {
+							print LOGFILE "$now $host STARTSDOWN\n";
+						}
+					}
+				}
 				if ($sample->{'success'}) {
 					$host_meta->{$host}->{'stats'}->add_data($sample->{'rtt'});
 					$host_meta->{$host}->{'pkt_recv'} += 1;
+				}
+				if ($host_meta->{$host}->{'previous'} ne $sample->{'success'}) {
+					if ($logfile ne "") {
+						if ($logfile ne "") {
+							if ($sample->{'success'}) {
+								print LOGFILE "$now $host UP\n";
+							} else {
+								print LOGFILE "$now $host DOWN\n";
+							}
+							$host_meta->{$host}->{'previous'} = $sample->{'success'};
+						}
+					}
 				}
 			}
 
@@ -353,6 +384,9 @@ sub _print_ping_samples {
 			$pos,
 			$ch
 		);
+	}
+	if ($logfile ne "") {
+		close (LOGFILE);
 	}
 }
 
@@ -637,7 +671,8 @@ sub usage() {
 		"  -h, --help          display this help and exit\n".
 		"  -S, --sync-ping     send the same amount of ping requests for all hosts\n".
 		"  -W, --wait=SECS     timeout in seconds to wait for a ping reply\n".
-		"  -i, --interval=SECS time in seconds between sending each request\n"
+		"  -i, --interval=SECS time in seconds between sending each request\n".
+		"  -l, --logfile=FILE  log events to file\n"
 	);
 }
 
@@ -651,6 +686,7 @@ sub main() {
 	    'sync-ping|S' => \$config{'sync_ping'},
 	    'wait|W=f' => \$timeout,
 	    'interval|i=f' => \$ping_interval,
+	    'logfile|l=s' => \$logfile
 	);
 
 	if ($help) {
@@ -659,6 +695,15 @@ sub main() {
 
 	if (scalar @ARGV == 0 && $file eq '') {
 		usage();
+	}
+
+	if ($logfile ne "") {
+		unless (-r $logfile && -w $logfile) {
+			#print "file exists, I can read and write it";
+		#} else {
+			open (LOGFILE, ">" . $logfile) || die "Can't create logfile $logfile\n";
+			close (LOGFILE);
+		}
 	}
 
 	$config{'scale_ms'} = floor($timeout * 1000 / 10); # 0..9
