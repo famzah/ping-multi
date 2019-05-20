@@ -333,7 +333,7 @@ sub _print_ping_samples {
 	if ($logfile ne "") {
 		open (LOGFILE, ">>" . $logfile);
 		my ($second, $minute, $hour, $day, $month, $year) = (localtime(time))[0..5];
-		$now = sprintf ("%d%02d%02d %02d:%02d:%02d", $year + 1900, $month + 1, $day, $hour, $minute, $second);
+		$now = sprintf ("%d-%02d-%02d %02d:%02d:%02d", $year + 1900, $month + 1, $day, $hour, $minute, $second);
 	}
 
 	$pos = $scr_max->{'x'} - $hdr_len->{'history'};
