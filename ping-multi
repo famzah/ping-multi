@@ -363,13 +363,13 @@ sub _print_ping_samples {
 					$host_meta->{$host}->{'pkt_recv'} += 1;
 				}
 				if ($host_meta->{$host}->{'previous'} ne $sample->{'success'}) {
+					$host_meta->{$host}->{'previous'} = $sample->{'success'};
 					if ($logfile ne "") {
 						if ($sample->{'success'}) {
 							print LOGFILE "$now $host UP\n";
 						} else {
 							print LOGFILE "$now $host DOWN\n";
 						}
-						$host_meta->{$host}->{'previous'} = $sample->{'success'};
 					}
 				}
 			}
