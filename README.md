@@ -31,6 +31,8 @@ The results are displayed in an interactive curses text console which features t
 
 You can select the statistics forwards and backwards using the lower "s" and upper "S" keys, similar to the "Vim" behavior.
 
+The host status changes can be logged to a file. This allows you to review the time of each event.
+
 # Installation
 
 The program depends on the following additional Perl modules:
@@ -54,6 +56,11 @@ sudo ./ping-multi google.com github.com
 Ping multiple hosts specified in a file; you can also add more single hosts directly as additional command-line arguments:
 ```bash
 sudo ./ping-multi -f sample.list
+```
+
+Ping and log up/down events to a file:
+```bash
+sudo ./ping-multi -l events.log google.com github.com
 ```
 
 Ping hosts synchronously; [this comment](https://github.com/famzah/ping-multi/pull/2#issuecomment-339098285) explains when this ping method is useful:
