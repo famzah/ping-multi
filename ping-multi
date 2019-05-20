@@ -321,6 +321,14 @@ sub _print_ping_sample_scale {
 	return $num;
 }
 
+sub print_logfile {
+	my $now = shift @_;
+	my $host = shift @_;
+	my $status = shift @_;
+
+	print LOGFILE "$now $host $status\n" or die("print($logfile): $!");
+}
+
 sub _print_ping_samples {
 	my $host = shift @_;
 	my @all_samples = @{shift @_};
@@ -351,9 +359,9 @@ sub _print_ping_samples {
 					$host_meta->{$host}->{'previous'} = $sample->{'success'};
 					if ($logfile ne "") {
 						if ($sample->{'success'}) {
-							print LOGFILE "$now $host STARTSUP\n";
+							print_logfile($now, $host, "STARTSUP");
 						} else {
-							print LOGFILE "$now $host STARTSDOWN\n";
+							print_logfile($now, $host, "STARTSDOWN");
 						}
 					}
 				}
@@ -365,9 +373,9 @@ sub _print_ping_samples {
 					$host_meta->{$host}->{'previous'} = $sample->{'success'};
 					if ($logfile ne "") {
 						if ($sample->{'success'}) {
-							print LOGFILE "$now $host UP\n";
+							print_logfile($now, $host, "UP");
 						} else {
-							print LOGFILE "$now $host DOWN\n";
+							print_logfile($now, $host, "DOWN");
 						}
 					}
 				}
