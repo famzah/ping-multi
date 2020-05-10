@@ -2,9 +2,11 @@
 Interactively ping one or multiple hosts.
 
 Screenshot 1:
+
 ![Ping-multi Screenshot 1](demo/screenshot-1.jpg?raw=true)
 
 Screenshot 2:
+
 ![Ping-multi Screenshot 2](demo/screenshot-2.jpg?raw=true)
 
 # Motivation
@@ -80,3 +82,5 @@ docker run --rm -it chrislwade/ping-multi -f sample.list
 docker run --rm -it chrislwade/ping-multi -l events.log google.com github.com
 docker run --rm -it chrislwade/ping-multi -S 192.168.0.1 192.168.0.2 192.168.0.15
 ```
+
+The Docker image is maintainted by [@chrislwade](https://github.com/chrislwade).
