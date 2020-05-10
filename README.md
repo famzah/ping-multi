@@ -69,3 +69,14 @@ sudo ./ping-multi -S 192.168.0.1 192.168.0.2 192.168.0.15
 ```
 
 Making ICMP ping requests requires "root" privileges on Linux.
+
+# Docker
+
+You can also use Docker to run ping-multi:
+```bash
+docker run --rm -it chrislwade/ping-multi
+docker run --rm -it chrislwade/ping-multi google.com github.com
+docker run --rm -it chrislwade/ping-multi -f sample.list
+docker run --rm -it chrislwade/ping-multi -l events.log google.com github.com
+docker run --rm -it chrislwade/ping-multi -S 192.168.0.1 192.168.0.2 192.168.0.15
+```
