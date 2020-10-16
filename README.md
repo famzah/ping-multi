@@ -1,5 +1,5 @@
 # ping-multi
-Interactively ping one or multiple hosts.
+Interactively ping one or multiple hosts from a single location.
 
 Screenshot 1:
 
