@@ -682,6 +682,13 @@ sub main() {
 	my $file = '';
 	my $help;
 
+	if ($ENV{'PING_MULTI_NO_ROOT_CHECK'}) { # useful if you have the "cap_net_raw" capability
+		no warnings qw(redefine);
+		*Net::Ping::_isroot = sub {
+			return 1;
+		};
+	}
+
 	GetOptions(
 	    'file|f=s' => \$file,
 	    'help|h' => \$help,
