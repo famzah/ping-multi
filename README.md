@@ -70,7 +70,17 @@ Ping hosts synchronously; [this comment](https://github.com/famzah/ping-multi/pu
 sudo ./ping-multi -S 192.168.0.1 192.168.0.2 192.168.0.15
 ```
 
+# Required privileges
+
 Making ICMP ping requests requires "root" privileges on Linux.
+
+Alternatively, you can and you should get advantage of the Linux [capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.html) and execute "ping-multi" with an unprivileged user who only has the CAP_NET_RAW capability. In such a case you need to define the environment variable `PING_MULTI_NO_ROOT_CHECK`, because the Perl module Net::Ping doesn't detect Linux capabilities. Here is a quick example, but do you own research on how to assign capabilities to a process:
+```bash
+sudo setpriv --reuid nobody --regid nogroup --init-groups \
+	--inh-caps -all,+net_raw --ambient-caps -all,+net_raw \
+	env PING_MULTI_NO_ROOT_CHECK=1 \
+	./ping-multi google.com github.com
+```
 
 # Docker
 
