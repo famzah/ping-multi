@@ -1,4 +1,9 @@
+**_Note_**: I recommend that you switch to the newer implementation: [ping-multi-ext](https://github.com/famzah/ping-multi-ext)
+
+---
+
 # ping-multi
+
 Interactively ping one or multiple hosts from a single location.
 
 Screenshot 1:
